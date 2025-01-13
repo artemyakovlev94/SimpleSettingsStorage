@@ -77,16 +77,32 @@ export default class StorageModel {
 
   webhookRepo = async (addFiles, removeFiles) => {
 
+    try {
+      for await (const removeFile of removeFiles)
+        await this.#deleteFileAndEmptyDirs(removeFile);
+    } catch (error) {
+      console.error(`Ошибка при удалении файла: ${error}`);
+    }
+    
+    try {
+      for await (const addFile of addFiles)
+        await new GitHubProvider().downloadFile(this.dataDir, addFile);
+    } catch (error) {
+      console.error(`Ошибка при загрузке файла из репозитория: ${error}`);
+    }
+
+    this.initScheme();
   };
 
   syncRepo = async () => {
     const tempDir = tmp.dirSync({ unsafeCleanup: true }).name;
 
     try {
-      await new GitHubProvider().downloadFile(tempDir);
+      await new GitHubProvider().downloadRepo(tempDir, ['.xml', '.json']);
       await fsExtra.emptyDir(this.dataDir);
       await fsExtra.move(tempDir, this.dataDir, { overwrite: true });
       this.initScheme();
+      console.log("Синхронизация с репозиторием завершена");
     } catch (error) {
       console.error("Ошибка при загрузке файлов из репозитория:", error);
     } finally {
@@ -233,5 +249,21 @@ export default class StorageModel {
     });
 
     return Object.keys(result).length > 0 ? result : {};
+  };
+
+  #deleteFileAndEmptyDirs = async (filePath) => {
+    const fileExists = await fsExtra.pathExists(filePath);
+    if (fileExists) await fsExtra.remove(filePath);
+
+    let dirPath = path.dirname(filePath);
+    while (dirPath !== path.dirname(dirPath)) {
+      const files = await fsExtra.readdir(dirPath);
+      if (files.length === 0) {
+        await fsExtra.remove(dirPath);
+        dirPath = path.dirname(dirPath);
+      } else {
+        break;
+      }
+    }
   };
 }

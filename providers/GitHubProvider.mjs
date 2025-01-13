@@ -17,15 +17,13 @@ export default class GitHubProvider {
     this.branchGitHub = branch || process.env.GITHUB_BRANCH || 'main';
   }
 
-  async downloadFile(destination, pathGitHub = null) {
+  async downloadRepo(destination, acceptableExt = []) {
     if (!fs.existsSync(destination)) throw new Error(`Directory ${destination} does not exist.`);
 
-    pathGitHub = pathGitHub ?? "";
-
-    const { data: сontents } = await this.octokit.rest.repos.getContent({
+    let { data: сontents } = await this.octokit.rest.repos.getContent({
       owner: this.ownerGitHub,
       repo: this.repoGitHub,
-      path: pathGitHub,
+      path: '',
       ref: this.branchGitHub,
     });
 
@@ -34,8 +32,10 @@ export default class GitHubProvider {
         const fsPath = path.join(dir, item.name);
         
         if (item.type === 'file') {
-          const response = await axios.get(item.download_url, { responseType: 'arraybuffer' });
-          await fs.outputFile(fsPath, response.data);
+          if (acceptableExt.length === 0 || acceptableExt.includes(path.extname(item.name))) {
+            const response = await axios.get(item.download_url, { responseType: 'arraybuffer' });
+            await fs.outputFile(fsPath, response.data);
+          }
         } else if (item.type === 'dir') {
           await fs.ensureDir(fsPath);
           let curentDirGitHub = dirGitHub ? `${dirGitHub}/${item.name}` : item.name;
@@ -50,6 +50,26 @@ export default class GitHubProvider {
       }
     };
 
-    await downloadFiles(сontents, destination, pathGitHub);
+    await downloadFiles(сontents, destination);
+  };
+
+  async downloadFile(destination, pathFile) {
+    if (!fs.existsSync(destination)) throw new Error(`Directory ${destination} does not exist.`);
+
+    let { data: dataFile } = await this.octokit.rest.repos.getContent({
+      owner: this.ownerGitHub,
+      repo: this.repoGitHub,
+      path: pathFile,
+      ref: this.branchGitHub,
+    });
+
+    if (typeof dataFile === 'object' && !Array.isArray(dataFile) && dataFile.type === 'file') {
+      const response = await axios.get(dataFile.download_url, { responseType: 'arraybuffer' });
+      const fsPath = path.join(destination, dataFile.path);
+      await fs.outputFile(fsPath, response.data);
+    }
+    else {
+      console.error(`Полученный объект ${pathFile} не является файлом репозитория: ${dataFile}`);
+    }
   }
 };

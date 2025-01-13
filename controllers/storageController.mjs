@@ -71,6 +71,8 @@ export async function webhookRepo(req, res, next) {
   const repo = req.body.repository.name;
   const ref = req.body.ref;
 
+  let result = false;
+
   if (
     owner === process.env.GITHUB_OWNER &&
     repo === process.env.GITHUB_REPO &&
@@ -86,11 +88,8 @@ export async function webhookRepo(req, res, next) {
       removedFiles = [...new Set(removedFiles.concat(commit.removed))];
     });
     
-    //storageModel.webhookRepo(addedAndModifiedFiles, removedFiles);
+    storageModel.webhookRepo(addedAndModifiedFiles, removedFiles);
     result = true;
-  }
-  else {
-    result = false;
   }
 
   res.status(200).json({ status: result });
