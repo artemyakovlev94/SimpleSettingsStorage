@@ -1,7 +1,7 @@
 import archiver from "archiver";
 import createError from "http-errors";
 import dotenv from "dotenv";
-import StorageModel from "../models/StorageModel.mjs";
+import StorageModel from "../models/storageModel.mjs";
 
 dotenv.config();
 
