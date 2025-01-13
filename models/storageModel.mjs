@@ -48,8 +48,14 @@ export default class StorageModel {
         scheme = JSON.parse(
           await fs.promises.readFile(this.schemeFile, "utf8")
         );
-        scheme = this.#extractSchemeByNode(scheme, node);
-        scheme = this.#extractSchemeByFilter(scheme, without_files, depth);
+
+        if (scheme && node) {
+          scheme = this.#extractSchemeByNode(scheme, node);
+        }
+
+        if (scheme) {
+          scheme = this.#extractSchemeByFilter(scheme, without_files, depth);
+        }
       } catch (error) {
         console.error(error);
       }
@@ -59,18 +65,35 @@ export default class StorageModel {
   };
 
   getFiles = async (files) => {
-    let result = { found: [], notFound: [] };
+    let result = [];
+    let notFound = [];
 
     files.forEach((file) => {
-      const relativePath = `${path.join(...file.split("\\"))}.xml`;
+      const relativePath = `${path.join(...file.split('/'))}.xml`;
       const absolutePath = path.join(this.dataDir, relativePath);
-
-      if (fs.existsSync(absolutePath)) {
-        result.found.push({ relative: relativePath, absolute: absolutePath });
-      } else {
-        result.notFound.push(file);
-      }
+      if (fs.existsSync(absolutePath)) result.push({ file: absolutePath, path: relativePath });
+      else notFound.push(file);
     });
+
+    if (notFound.length > 0) {
+      const fileNotFoundName = 'notFound.txt';
+      const tempDir = tmp.dirSync({ unsafeCleanup: true }).name;
+      const fileNotFound = path.join(tempDir, fileNotFoundName);
+
+      try {
+        fsExtra.writeFileSync(fileNotFound, notFound.join('\n'));
+        const dataNotFound = fsExtra.readFileSync(fileNotFound);
+        result.push({ file: dataNotFound, path: fileNotFoundName });
+      } catch (error) {
+        console.error(`Ошибка создания файла ${fileNotFoundName}: `, error);
+      } finally {
+        try {
+          await fsExtra.remove(tempDir);
+        } catch (errRemoveTmpDit) {
+          console.error(`Ошибка удаления временной папки файла ${fileNotFoundName}: `, errRemoveTmpDit);
+        }
+      }
+    }
 
     return result;
   };
@@ -186,23 +209,16 @@ export default class StorageModel {
   };
 
   #extractSchemeByNode = (scheme, node) => {
-    if (node === null) {
-      return scheme;
-    }
-
-    let nodeParts = node.split("/");
     let currentNode = scheme;
-
-    for (let part of nodeParts) {
+    for (let part of node.split("/")) {
       if (currentNode[part] && currentNode[part].type === "directory") {
         currentNode = currentNode[part].children
           ? currentNode[part].children
-          : {};
+          : null;
       } else {
-        return {};
+        return null;
       }
     }
-
     return currentNode;
   };
 
@@ -248,7 +264,7 @@ export default class StorageModel {
       }
     });
 
-    return Object.keys(result).length > 0 ? result : {};
+    return Object.keys(result).length > 0 ? result : null;
   };
 
   #deleteFileAndEmptyDirs = async (filePath) => {
