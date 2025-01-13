@@ -9,9 +9,6 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-const storage = new StorageModel();
-storage.initScheme();
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(limiter);
@@ -33,4 +30,13 @@ app.use((err, req, res, next) => {
 
 app.listen(port, async () => {
   console.log(`Server is running on port ${port}`);
+  const storage = new StorageModel();
+  try {
+    await storage.syncRepo();
+  } catch (error) {
+    console.error("Ошибка запуска синхронизации репозитория: ", error);
+  } finally {
+    await storage.initScheme();
+    console.log("Схема проинициализирована");
+  }
 });
