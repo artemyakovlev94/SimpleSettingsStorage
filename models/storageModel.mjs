@@ -268,11 +268,12 @@ export default class StorageModel {
   };
 
   #deleteFileAndEmptyDirs = async (filePath) => {
-    const fileExists = await fsExtra.pathExists(filePath);
-    if (fileExists) await fsExtra.remove(filePath);
+    const file_path = path.join(this.dataDir, filePath);
+    const fileExists = await fsExtra.pathExists(file_path);
+    if (fileExists) await fsExtra.remove(file_path);
 
-    let dirPath = path.dirname(filePath);
-    while (dirPath !== path.dirname(dirPath)) {
+    let dirPath = path.dirname(file_path);
+    while (dirPath !== path.dirname(this.dataDir)) {
       const files = await fsExtra.readdir(dirPath);
       if (files.length === 0) {
         await fsExtra.remove(dirPath);
