@@ -12,7 +12,7 @@ export function verifySignatureGitHub(req, res, next) {
 
   const hmac = crypto.createHmac(
     "sha256",
-    process.env.PREDEFINED_SETTINGS_GITHUB_WEBHOOK_SECRET
+    process.env.GITHUB_WEBHOOK_SECRET
   );
   const digest = `sha256=${hmac.update(payload).digest("hex")}`;
 
