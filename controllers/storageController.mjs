@@ -9,7 +9,7 @@ const storageModel = new StorageModel();
 
 export async function getScheme(req, res, next) {
   let { node, without_files, depth } = req.query;
-  node = node || null;
+  node = node || '';
   without_files =
     without_files === "true" || without_files === "1" || without_files === 1;
   depth = depth ? parseInt(depth, 10) : Infinity;
@@ -48,15 +48,10 @@ export async function getFiles(req, res, next) {
     archive.pipe(res);
 
     const result = await storageModel.getFiles(files);
-    result.found.forEach((dataFile) => {
-      archive.file(dataFile.absolute, { name: dataFile.relative });
+    result.forEach((dataFile) => {
+      if (typeof dataFile.file === 'string') archive.file(dataFile.file, { name: dataFile.path });
+      else archive.append(dataFile.file, { name: dataFile.path });
     });
-
-    if (result.notFound.length !== 0) {
-      archive.append(JSON.stringify(result.notFound, null, 2), {
-        name: "NotFoundFiles.json",
-      });
-    }
 
     archive.finalize();
     res.setHeader("Content-Type", "application/zip");
